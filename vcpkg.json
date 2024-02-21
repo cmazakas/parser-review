@@ -1,6 +1,6 @@
 {
   "dependencies": [
-    "boost-hana",
+    "boost-parser",
     "catch2"
   ]
 }
