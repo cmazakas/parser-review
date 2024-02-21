@@ -1,19 +1,15 @@
 #include <http/response_parser.hpp>
 
 #include <boost/parser/parser.hpp>
+
 #include <iostream>
+#include <ranges>
 
 namespace http {
 namespace {
 // HTTP-message = start-line CRLF *( field-line CRLF ) CRLF [
 //  message-body ]
-//
 // start-line = request-line / status-line
-//
-// status-line = HTTP-version SP status-code SP [ reason-phrase ]
-// HTTP-version = HTTP-name "/" DIGIT "." DIGIT
-// HTTP-name = %x48.54.54.50 ; HTTP
-// status-code = 3DIGIT
 
 auto const on_major = [](auto &ctx) {
   auto const major = _attr(ctx);
@@ -33,18 +29,21 @@ auto const on_minor = [](auto &ctx) {
   _globals(ctx).md_.version_.minor_ = minor;
 };
 
-auto const on_status = [](auto &ctx) {
+auto const on_status_code = [](auto &ctx) {
   auto status = _attr(ctx);
   if (status < 100 || status > 599) {
     _pass(ctx) = false;
     return;
   }
-  _globals(ctx).md_.status_ = status;
+  response::metadata &md = _globals(ctx).md_;
+  md.status_ = status;
   auto subrange = _where(ctx);
-  _globals(ctx).md_.status_line_ = {
-      _begin(ctx), static_cast<std::size_t>(subrange.end() - _begin(ctx))};
+  md.status_line_begin_ = _begin(ctx);
+  md.status_line_end_ = subrange.end();
 };
 
+// HTTP-version = HTTP-name "/" DIGIT "." DIGIT
+// HTTP-name = %x48.54.54.50 ; HTTP
 auto const http_name = boost::parser::lit("HTTP");
 
 boost::parser::rule<struct http_version> http_version = "http_version";
@@ -52,35 +51,34 @@ auto const http_version_def = http_name >> "/" >>
                               boost::parser::uint_[on_major] >> "." >>
                               boost::parser::uint_[on_minor];
 
+// status-code = 3DIGIT
 boost::parser::rule<struct status_code> status_code = "status_code";
-auto const status_code_def = boost::parser::uint_[on_status];
+auto const status_code_def = boost::parser::uint_[on_status_code];
 
 // reason-phrase = 1*( HTAB / SP / VCHAR / obs-text )
 // VCHAR         = %x21-7E
-
-auto const on_vchar = [](auto &ctx) {
+auto const on_reason_phrase = [](auto &ctx) {
   auto ch = _attr(ctx);
   if (ch != '\t' && ch != ' ' && (ch < '\x21' || ch > '\x7e')) {
     _pass(ctx) = false;
     return;
   }
 
-  auto sub = _where(ctx);
-  auto &reason_phrase = _globals(ctx).md_.reason_phrase_;
-  if (!reason_phrase.data()) {
-    reason_phrase = std::string_view(sub.begin(), sub.end() - sub.begin());
-  } else {
-    reason_phrase = std::string_view(reason_phrase.begin(), sub.end());
-    _globals(ctx).md_.status_line_ = {
-        _globals(ctx).md_.status_line_.data(),
-        static_cast<std::size_t>(sub.end() - _begin(ctx))};
+  response::metadata &md = _globals(ctx).md_;
+  std::ranges::subrange<char const *> sub = _where(ctx);
+  if (!md.reason_phrase_begin_) {
+    md.reason_phrase_begin_ = sub.begin();
   }
+  md.reason_phrase_end_ = sub.end();
+  md.status_line_end_ = sub.end();
+  ;
 };
 
 boost::parser::rule<struct reason_phrase> reason_phrase = "reason_phrase";
 auto const reason_phrase_def =
-    boost::parser::omit[+boost::parser::char_[on_vchar]];
+    boost::parser::omit[+boost::parser::char_[on_reason_phrase]];
 
+// status-line = HTTP-version SP status-code SP [ reason-phrase ]
 boost::parser::rule<struct status_line> status_line = "status_line";
 auto const status_line_def = http_version >> " " >> status_code >> " " >>
                              -(reason_phrase);

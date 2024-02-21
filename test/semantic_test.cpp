@@ -15,9 +15,9 @@ TEST_CASE("using semantic actions") {
     CHECK(response.md_.version_.major_ == 1);
     CHECK(response.md_.version_.minor_ == 1);
     CHECK(response.md_.status_ == 404);
-    CHECK(response.md_.reason_phrase_ ==
+    CHECK(response.reason_phrase() ==
           "content not found or something like that");
-    CHECK(response.md_.status_line_ == input);
+    CHECK(response.status_line() == input);
 
     CHECK(buf.empty());
   }
@@ -31,9 +31,42 @@ TEST_CASE("using semantic actions") {
     CHECK(response.md_.version_.major_ == 1);
     CHECK(response.md_.version_.minor_ == 1);
     CHECK(response.md_.status_ == 404);
-    CHECK(response.md_.reason_phrase_ == "content not found");
-    CHECK(response.md_.status_line_ == "HTTP/1.1 404 content not found");
+    CHECK(response.reason_phrase() == "content not found");
+    CHECK(response.status_line() == "HTTP/1.1 404 content not found");
 
     CHECK(buf == "\r\nor something like that");
+  }
+
+  {
+    std::string_view const inputs[] = {"HTTP/lmao", "rawr", "HTTP/20.02"};
+
+    for (auto const input : inputs) {
+      auto buf = input;
+      auto response = http::parse_response(buf);
+      CHECK(response.md_.version_.major_ == -1);
+      CHECK(response.md_.version_.minor_ == -1);
+      CHECK(response.md_.status_ == -1);
+      CHECK(response.reason_phrase() == "");
+      CHECK(response.status_line() == "");
+
+      CHECK(buf == input);
+    }
+  }
+
+  {
+    std::string_view const inputs[] = {"HTTP/2.0 \r\n", "HTTP/2.0 rawr",
+                                       "HTTP/2.0 400000000004"};
+
+    for (auto const input : inputs) {
+      auto buf = input;
+      auto response = http::parse_response(buf);
+      CHECK(response.md_.version_.major_ == 2);
+      CHECK(response.md_.version_.minor_ == 0);
+      CHECK(response.md_.status_ == -1);
+      CHECK(response.reason_phrase() == "");
+      CHECK(response.status_line() == "");
+
+      CHECK(buf == input);
+    }
   }
 }
