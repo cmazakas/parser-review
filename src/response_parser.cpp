@@ -59,23 +59,20 @@ auto const status_code = parser::uint_[on_status_code];
 // reason-phrase = 1*( HTAB / SP / VCHAR / obs-text )
 // VCHAR         = %x21-7E
 auto const on_reason_phrase = [](auto &ctx) {
-  auto ch = _attr(ctx);
-  if (ch != '\t' && ch != ' ' && (ch < '\x21' || ch > '\x7e')) {
-    _pass(ctx) = false;
-    return;
-  }
+  auto sv = _attr(ctx);
 
   response::metadata &md = _globals(ctx).md_;
-  std::ranges::subrange<char const *> sub = _where(ctx);
-  if (!md.reason_phrase_begin_) {
-    md.reason_phrase_begin_ = sub.begin();
-  }
-  md.reason_phrase_end_ = sub.end();
-  md.status_line_end_ = sub.end();
+
+  md.reason_phrase_begin_ = sv.begin();
+  md.reason_phrase_end_ = sv.end();
+
+  md.status_line_end_ = sv.end();
   ;
 };
 
-auto const reason_phrase = parser::omit[+parser::char_[on_reason_phrase]];
+auto const reason_phrase =
+    parser::string_view[+(parser::char_('\x21', '\x7e') | '\t' | ' ')]
+                       [on_reason_phrase];
 
 // status-line = HTTP-version SP status-code SP [ reason-phrase ]
 auto const status_line = http_version >> " " >> status_code >> " " >>
