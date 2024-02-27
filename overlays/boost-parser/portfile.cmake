@@ -3,8 +3,8 @@
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO tzlaine/parser
-    REF 875eb9e4aa18d1d5d9efa98bee578a0cd6073a0c
-    SHA512 5fb62fe36525ecf1575223c6a3763cfe3d979c1e9d8e82a1b8bfd3ddfe8ba7052cc97e03f8f8bf50ac6c29469ce3d7006a6a134259d38ef29d05e14a104b8a11
+    REF 3c3e44ebf2aa556493f0fa3bc4eafe5d2da4a50d
+    SHA512 825b3deb7f2577193d46226b569f77fdfef26f3d0f38cadc37fe6fdc80330fcd9ded562b837f6bdb5a1abba3133b2b8c74075e77fcda9507d002a1a11c597a95
     HEAD_REF develop
 )
 
