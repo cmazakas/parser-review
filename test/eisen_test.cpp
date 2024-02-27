@@ -111,3 +111,34 @@ TEST_CASE("for eisen") {
     CHECK(md.msgs_.at(1) == "wr!");
   }
 }
+
+auto const on_text = [](auto &ctx) { std::cout << _attr(ctx) << std::endl; };
+
+p::rule<struct braced> const braced = "braced";
+auto const ascii = p::char_(32, 126);
+auto const c = ascii - p::char_("{}");
+auto const braced_def = p::lit('{') >>
+                        *(p::string_view[+c][on_text] | braced) >> '}';
+BOOST_PARSER_DEFINE_RULES(braced);
+
+TEST_CASE("eisen take 2") {
+  {
+    std::string_view input = "{}";
+
+    auto pos = input.begin();
+    auto end = input.end();
+    auto result = p::prefix_parse(pos, end, braced, p::ws);
+    CHECK(result);
+    CHECK(pos == end);
+  }
+
+  {
+    std::string_view input = "{ {} lmao {} {{{rawr{{}}}}}  }";
+
+    auto pos = input.begin();
+    auto end = input.end();
+    auto result = p::prefix_parse(pos, end, braced, p::ws);
+    CHECK(result);
+    CHECK(pos == end);
+  }
+}
