@@ -1,6 +1,7 @@
 {
   "dependencies": [
     "boost-parser",
+    "boost-json",
     "catch2"
   ]
 }
